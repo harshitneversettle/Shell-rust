@@ -61,6 +61,35 @@ fn main() {
     //         println!("{}: command not found" , command) ;
     //     }
     // }
+
+     // The type Builtin
+    loop{
+        print!("$ ") ;
+        io::stdout().flush().unwrap() ;
+
+        let inbuilt_commands = ["echo", "exit", "type"];
+        let mut data = String::new() ;
+        io::stdin().read_line(&mut data).unwrap() ;
+        let command = data.trim_end() ;
+        if command == "exit" {break} ;
+        let commands_vec : Vec<&str> = command.split_whitespace().collect() ;
+        if commands_vec[0] == "type" {
+            for i in &commands_vec[1..]{
+                if inbuilt_commands.contains(i) {
+                    println!("{} is a shell builtin" , i) ;
+                }else{
+                    println!("{} not found" , i) ;
+                }
+            }
+        }else if commands_vec[0] == "echo" {
+            for i in &commands_vec[1..]{
+                print!("{} " , i) ;
+            }
+            println!();
+        }else{
+            println!("{}: not found" , command) ;
+        }
+    }
     
 
     
