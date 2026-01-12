@@ -21,6 +21,19 @@ fn main() {
     // }
 
 
+// inbuilt exit implementation 
+    // loop {
+    //     print!("$ ") ;
+    //     io::stdout().flush().unwrap() ;
+
+    //     let mut data = String::new() ;
+    //     io::stdin().read_line(&mut data).unwrap() ;
+    //     let command = data.trim() ;
+
+    //     if command == "exit" {break} ;
+    //     println!("{}: command not found" , command) ;
+    // }
+
     
 
     
