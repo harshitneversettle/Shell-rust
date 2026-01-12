@@ -2,8 +2,9 @@
 use std::io::{self, Write};
 
 fn main() {
-    // TODO: Uncomment the code below to pass the first stage
-    io::stdout() ;
-    print!("$ ");
-    io::stdout().flush().unwrap();
+    print!("$ ") ;
+    io::stdout().flush().unwrap() ;
+    let mut data = String::new() ;
+    io::stdin().read_line(&mut data).unwrap() ;          
+    println!("{}: command not found" , data.trim());
 }
