@@ -6,7 +6,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-
 fn main() {
     // print!("$ ") ;
     // io::stdout().flush().unwrap() ;
@@ -107,26 +106,46 @@ fn main() {
         io::stdin().read_line(&mut data).unwrap();
         let data_vec: Vec<&str> = data.split_whitespace().collect();
 
-        if inbuilt_commands.contains(&data_vec[1]) {
-            println!("{} is a shell command", data_vec[1]);
-            break;
+        if data_vec.len() == 1 && data_vec[0] == "exit" {
+            break ;
+        }
+        if data_vec.len() == 1 && !inbuilt_commands.contains(&data_vec[0]) {
+            println!("{}: command not found", data_vec[0]);
         } else {
-            for j in &data_vec[1..] {
-                let mut flag : bool = false ;
-                for i in &path_seperated {
-                    let full_path = i.join(j) ;
-                    // check if the path generated exists or not
-                    if full_path.exists() {
-                        // now check if the path is executable
-                        let mode  = full_path.metadata().unwrap().permissions().mode();
-                        if (mode & 0o111) != 0 {
-                            // => the path is executable 
-                            flag = true ;
-                            println!("{} is {:?}" , j , full_path) ;
+            if inbuilt_commands.contains(&data_vec[1]) {
+                println!("{} is a shell builtin", data_vec[1]);
+                continue;
+            }
+
+            if data_vec[0] == "echo" {
+                for i in &data_vec[1..] {
+                    print!("{} ", i);
+                }
+                println!();
+            } else if data_vec[0] == "type" {
+                for j in &data_vec[1..] {
+                    let mut flag: bool = false;
+                    for i in &path_seperated {
+                        let path_j = Path::new(&j);
+                        let full_path = i.join(path_j);
+                        // check if the path generated exists or not
+                        if full_path.exists() {
+                            // now check if the path is executable
+                            let mode = full_path.metadata().unwrap().permissions().mode();
+                            if (mode & 0o111) != 0 {
+                                // => the path is executable
+                                flag = true;
+                                println!("{} is {}", j, full_path.display());
+                                break;
+                            }
                         }
                     }
+                    if !flag {
+                        println!("{}: not found", j);
+                    }
                 }
-                if !flag {println!("{}: not found" , j) ;}
+            } else {
+                println!("{}: command not found", data);
             }
         }
     }
