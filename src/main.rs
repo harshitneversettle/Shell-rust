@@ -215,7 +215,7 @@ fn main() {
                 env::set_current_dir(new_directory);
             }else {
                 // cd: /does_not_exist: No such file or directory
-                println!("cd: {}: No such file or directory" , dir_path.display()) ;
+                println!("{}: {}: No such file or directory" , data_vec[0] ,dir_path.display()) ;
             }
         }
         else { 
