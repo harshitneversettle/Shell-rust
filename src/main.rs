@@ -211,6 +211,11 @@ fn main() {
         } else if data_vec[0] == "cd" {
             let new_directory = data_vec[1] ;
             let dir_path = Path::new(new_directory) ;
+            if data_vec[1] == "~" {
+                let home_dir = env::home_dir().unwrap() ;
+                env::set_current_dir(home_dir) ;
+                continue; 
+            }
             if fs::exists(dir_path).unwrap() {
                 env::set_current_dir(new_directory);
             }else {
