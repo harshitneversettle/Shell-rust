@@ -1,9 +1,9 @@
 use std::env::args;
-use std::fs;
+use std::fs::{self, exists};
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
-use std::process::Command;
+use std::process::{Command, Termination};
 use std::{
     env,
     path::{Path, PathBuf},
@@ -154,6 +154,7 @@ fn main() {
     // }
 
     // execute a file
+
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
@@ -162,28 +163,50 @@ fn main() {
         let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
         // now i have a vector of paths , now command[i] ko attach kro and find that check if it exists or not
 
-        let inbuilt_commands = ["echo", "exit", "type" , "pwd" , "cd"];
+        let inbuilt_commands = vec![
+            "echo".to_string(),
+            "exit".to_string(),
+            "type".to_string(),
+            "pwd".to_string(),
+            "cd".to_string(),
+        ];
+
         let mut data = String::new();
         io::stdin().read_line(&mut data).unwrap();
-        let data_vec: Vec<&str> = data.split_whitespace().collect();
-
+        let data_vec: Vec<String> = parse_input(&data);
+        if data_vec.is_empty() {
+            continue;
+        }
         if data_vec.len() == 1 && data_vec[0] == "exit" {
             break;
         }
         if data_vec.len() == 1 && !inbuilt_commands.contains(&data_vec[0]) {
             println!("{}: command not found", data_vec[0]);
-            continue ;
+            continue;
         }
         if data_vec[0] == "echo" {
+            let mut temp_str = String::new();
             for i in &data_vec[1..] {
-                print!("{} ", i);
+                temp_str.push_str(i);
+                temp_str.push(' ');
             }
-            println!();
+            println!("{}", temp_str.trim_end());
+            // println!(" ") ;
+        } else if data_vec[0] == "cat" {
+            let command = &data_vec[0];
+            let args = &data_vec[1..];
+
+            Command::new(command)
+                .args(args)
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
         } else if data_vec[0] == "type" {
             for j in &data_vec[1..] {
                 if inbuilt_commands.contains(j) {
-                    println!("{} is a shell builtin" , j) ;
-                    continue ;
+                    println!("{} is a shell builtin", j);
+                    continue;
                 }
                 let mut flag: bool = false;
                 for i in &path_seperated {
@@ -206,25 +229,27 @@ fn main() {
                 }
             }
         } else if data_vec[0] == "pwd" {
-            let print_wd = env::current_dir().unwrap() ;
-            println!("{}" , print_wd.display()) ;
+            let print_wd = env::current_dir().unwrap();
+            println!("{}", print_wd.display());
         } else if data_vec[0] == "cd" {
-            let new_directory = data_vec[1] ;
-            let dir_path = Path::new(new_directory) ;
+            let new_directory = &data_vec[1];
+            let dir_path = Path::new(new_directory);
             if data_vec[1] == "~" {
-                let home_dir = env::home_dir().unwrap() ;
-                env::set_current_dir(home_dir) ;
-                continue; 
+                let home_dir = env::home_dir().unwrap();
+                env::set_current_dir(home_dir);
+                continue;
             }
             if fs::exists(dir_path).unwrap() {
                 env::set_current_dir(new_directory);
-            }else {
+            } else {
                 // cd: /does_not_exist: No such file or directory
-                println!("{}: {}: No such file or directory" , data_vec[0] ,dir_path.display()) ;
+                println!(
+                    "{}: {}: No such file or directory",
+                    data_vec[0],
+                    dir_path.display()
+                );
             }
-        }
-        else { 
-            // custom_exe_2920 David James David
+        } else {
             // if the command is this , first one is command name , and the other =s are args
             let command = &data_vec[0];
             let args = &data_vec[1..];
@@ -237,4 +262,37 @@ fn main() {
                 .unwrap();
         }
     }
-}   
+    // let input = String::from("echo script     shell");
+    // let ans = parse_input(&input);
+    // println!("{:?}", ans);
+}
+
+pub fn parse_input(input: &str) -> Vec<String> {
+    let mut return_vec: Vec<String> = Vec::new();
+    let mut in_quotes: bool = false;
+    let mut curr_str = String::new();
+
+    for i in input.chars() {
+        if i == '\'' {
+            in_quotes = !in_quotes;
+        } else if !in_quotes && i != ' ' {
+            curr_str.push(i);
+        } else if in_quotes {
+            if i == '\'' {
+                continue;
+            }
+            curr_str.push(i);
+        } else if !in_quotes {
+            if !curr_str.is_empty() {
+                return_vec.push(curr_str.clone());
+            }
+            curr_str.clear();
+        } else {
+            return_vec.push(curr_str.clone());
+        }
+    }
+    if !curr_str.is_empty() {
+        return_vec.push(curr_str);
+    }
+    return_vec
+}
