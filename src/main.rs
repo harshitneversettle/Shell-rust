@@ -161,7 +161,7 @@ fn main() {
         let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
         // now i have a vector of paths , now command[i] ko attach kro and find that check if it exists or not
 
-        let inbuilt_commands = ["echo", "exit", "type"];
+        let inbuilt_commands = ["echo", "exit", "type" , "pwd"];
         let mut data = String::new();
         io::stdin().read_line(&mut data).unwrap();
         let data_vec: Vec<&str> = data.split_whitespace().collect();
@@ -204,7 +204,11 @@ fn main() {
                     println!("{}: not found", j);
                 }
             }
-        } else {
+        } else if data_vec[0] == "pwd" {
+            let print_wd = env::current_dir().unwrap() ;
+            println!("{}" , print_wd.display()) ;
+        }
+        else {
             // custom_exe_2920 David James David
             // if the command is this , first one is command name , and the other =s are args
             let command = &data_vec[0];
