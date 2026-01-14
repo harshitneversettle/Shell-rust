@@ -156,6 +156,7 @@ fn main() {
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
+        // read input
         let path = std::env::var("PATH").unwrap();
         let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
         // now i have a vector of paths , now command[i] ko attach kro and find that check if it exists or not
@@ -170,44 +171,42 @@ fn main() {
         }
         if data_vec.len() == 1 && !inbuilt_commands.contains(&data_vec[0]) {
             println!("{}: command not found", data_vec[0]);
-        } else if data_vec[0] == "type" {
-            if inbuilt_commands.contains(&data_vec[1]) {
-                println!("{} is a shell builtin", data_vec[1]);
-                continue;
+            continue ;
+        }
+        if data_vec[0] == "echo" {
+            for i in &data_vec[1..] {
+                print!("{} ", i);
             }
-            if data_vec[0] == "echo" {
-                for i in &data_vec[1..] {
-                    print!("{} ", i);
+            println!();
+        } else if data_vec[0] == "type" {
+            for j in &data_vec[1..] {
+                if inbuilt_commands.contains(j) {
+                    println!("{} is a shell builtin" , j) ;
+                    continue ;
                 }
-                println!();
-            } else if data_vec[0] == "type" {
-                for j in &data_vec[1..] {
-                    let mut flag: bool = false;
-                    for i in &path_seperated {
-                        let path_j = Path::new(&j);
-                        let full_path = i.join(path_j);
-                        // check if the path generated exists or not
-                        if full_path.exists() {
-                            // now check if the path is executable
-                            let mode = full_path.metadata().unwrap().permissions().mode();
-                            if (mode & 0o111) != 0 {
-                                // => the path is executable
-                                flag = true;
-                                println!("{} is {}", j, full_path.display());
-                                break;
-                            }
+                let mut flag: bool = false;
+                for i in &path_seperated {
+                    let path_j = Path::new(&j);
+                    let full_path = i.join(path_j);
+                    // check if the path generated exists or not
+                    if full_path.exists() {
+                        // now check if the path is executable
+                        let mode = full_path.metadata().unwrap().permissions().mode();
+                        if (mode & 0o111) != 0 {
+                            // => the path is executable
+                            flag = true;
+                            println!("{} is {}", j, full_path.display());
+                            break;
                         }
                     }
-                    if !flag {
-                        println!("{}: not found", j);
-                    }
                 }
-            } else {
-                println!("{}: command not found", data);
+                if !flag {
+                    println!("{}: not found", j);
+                }
             }
         } else {
-            // custom_exe_2920 David James David 
-            // if the command is this , first one is command name , and the other =s are args 
+            // custom_exe_2920 David James David
+            // if the command is this , first one is command name , and the other =s are args
             let command = &data_vec[0];
             let args = &data_vec[1..];
             //let full_command = i.join(command);
