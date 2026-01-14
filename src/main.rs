@@ -1,4 +1,5 @@
 use std::env::args;
+use std::fs;
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
@@ -161,7 +162,7 @@ fn main() {
         let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
         // now i have a vector of paths , now command[i] ko attach kro and find that check if it exists or not
 
-        let inbuilt_commands = ["echo", "exit", "type" , "pwd"];
+        let inbuilt_commands = ["echo", "exit", "type" , "pwd" , "cd"];
         let mut data = String::new();
         io::stdin().read_line(&mut data).unwrap();
         let data_vec: Vec<&str> = data.split_whitespace().collect();
@@ -207,8 +208,17 @@ fn main() {
         } else if data_vec[0] == "pwd" {
             let print_wd = env::current_dir().unwrap() ;
             println!("{}" , print_wd.display()) ;
+        } else if data_vec[0] == "cd" {
+            let new_directory = data_vec[1] ;
+            let dir_path = Path::new(new_directory) ;
+            if fs::exists(dir_path).unwrap() {
+                env::set_current_dir(new_directory);
+            }else {
+                // cd: /does_not_exist: No such file or directory
+                println!("cd: {}: No such file or directory" , dir_path.display()) ;
+            }
         }
-        else {
+        else { 
             // custom_exe_2920 David James David
             // if the command is this , first one is command name , and the other =s are args
             let command = &data_vec[0];
@@ -222,4 +232,4 @@ fn main() {
                 .unwrap();
         }
     }
-}
+}   
