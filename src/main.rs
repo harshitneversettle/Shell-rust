@@ -192,16 +192,6 @@ fn main() {
             }
             println!("{}", temp_str.trim_end());
             // println!(" ") ;
-        } else if data_vec[0] == "cat" {
-            let command = &data_vec[0];
-            let args = &data_vec[1..];
-
-            Command::new(command)
-                .args(args)
-                .spawn()
-                .unwrap()
-                .wait()
-                .unwrap();
         } else if data_vec[0] == "type" {
             for j in &data_vec[1..] {
                 if inbuilt_commands.contains(j) {
@@ -253,8 +243,9 @@ fn main() {
             // if the command is this , first one is command name , and the other =s are args
             let command = &data_vec[0];
             let args = &data_vec[1..];
-            //let full_command = i.join(command);
-            let result = Command::new(command)
+
+            // means the file is executable
+            Command::new(command)
                 .args(args)
                 .spawn()
                 .unwrap()
@@ -262,7 +253,7 @@ fn main() {
                 .unwrap();
         }
     }
-    // let input = String::from("echo script     shell");
+    // let input = String::from("cat '/tmp/bee/f   17' '/tmp/bee/f   2' '/tmp/bee/f   31'");
     // let ans = parse_input(&input);
     // println!("{:?}", ans);
 }
@@ -272,23 +263,22 @@ pub fn parse_input(input: &str) -> Vec<String> {
     let mut in_quotes: bool = false;
     let mut curr_str = String::new();
 
+    // let input = input.trim_end_matches(|c| c == '\n' || c == '\r');
+
     for i in input.chars() {
+        if i == '\n' {
+            continue;
+        }
         if i == '\'' {
             in_quotes = !in_quotes;
-        } else if !in_quotes && i != ' ' {
-            curr_str.push(i);
+            continue;
         } else if in_quotes {
-            if i == '\'' {
-                continue;
-            }
             curr_str.push(i);
-        } else if !in_quotes {
-            if !curr_str.is_empty() {
-                return_vec.push(curr_str.clone());
-            }
-            curr_str.clear();
-        } else {
+        } else if i != ' ' {
+            curr_str.push(i);
+        } else if !curr_str.is_empty() {
             return_vec.push(curr_str.clone());
+            curr_str.clear();
         }
     }
     if !curr_str.is_empty() {
