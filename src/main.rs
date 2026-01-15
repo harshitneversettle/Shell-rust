@@ -243,7 +243,7 @@ fn main() {
             // if the command is this , first one is command name , and the other =s are args
             let command = &data_vec[0];
             let args = &data_vec[1..];
-
+            
             // means the file is executable
             Command::new(command)
                 .args(args)
@@ -253,14 +253,15 @@ fn main() {
                 .unwrap();
         }
     }
-    // let input = String::from("cat '/tmp/bee/f   17' '/tmp/bee/f   2' '/tmp/bee/f   31'");
-    // let ans = parse_input(&input);
-    // println!("{:?}", ans);
+//    let input = String::from("shell  script") + "test" + "hello";
+//     let ans = parse_input(&input);
+//     println!("{:?}", ans);
 }
 
 pub fn parse_input(input: &str) -> Vec<String> {
     let mut return_vec: Vec<String> = Vec::new();
     let mut in_quotes: bool = false;
+    let mut in_double : bool = false ;
     let mut curr_str = String::new();
 
     // let input = input.trim_end_matches(|c| c == '\n' || c == '\r');
@@ -269,10 +270,12 @@ pub fn parse_input(input: &str) -> Vec<String> {
         if i == '\n' {
             continue;
         }
-        if i == '\'' {
+        if i == '\''  && !in_double  {
             in_quotes = !in_quotes;
             continue;
-        } else if in_quotes {
+        } else if i == '"' {
+            in_double = !in_double ;
+        } else if in_quotes || in_double {
             curr_str.push(i);
         } else if i != ' ' {
             curr_str.push(i);
