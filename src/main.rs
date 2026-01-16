@@ -1,13 +1,9 @@
-use std::env::args;
-use std::fs::{self, exists};
+use std::fs::{self, OpenOptions};
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
-use std::process::{Command, Termination};
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+use std::process::{Command, Stdio};
+use std::{env, path::Path};
 
 fn main() {
     // print!("$ ") ;
@@ -170,28 +166,51 @@ fn main() {
             "pwd".to_string(),
             "cd".to_string(),
         ];
+        let symbol1 = String::from(">");
 
         let mut data = String::new();
         io::stdin().read_line(&mut data).unwrap();
         let data_vec: Vec<String> = parse_input(&data);
         if data_vec.is_empty() {
             continue;
-        }
-        if data_vec.len() == 1 && data_vec[0] == "exit" {
+        } else if data_vec.len() == 1 && data_vec[0] == "exit" {
             break;
-        }
-        if data_vec.len() == 1 && !inbuilt_commands.contains(&data_vec[0]) {
+        } else if data_vec.len() == 1 && !inbuilt_commands.contains(&data_vec[0]) {
             println!("{}: command not found", data_vec[0]);
             continue;
-        }
-        if data_vec[0] == "echo" {
+        } else if data_vec.contains(&symbol1) {
+            let command = &data_vec[0];
+            let mut args = Vec::new();
+            let mut idx = 1;
+            for i in &data_vec[1..] {
+                if i == ">" {
+                    break;
+                }
+                args.push(i);
+                idx += 1;
+            }
+            let filename = &data_vec[idx + 1];
+            let file = OpenOptions::new()
+                .create(true)
+                .truncate(true)
+                .write(true)
+                .open(filename)
+                .unwrap();
+            Command::new(&command)
+                .args(&args)
+                .stdout(Stdio::from(file))
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
+            continue;
+        } else if data_vec[0] == "echo" {
             let mut temp_str = String::new();
             for i in &data_vec[1..] {
                 temp_str.push_str(i);
                 temp_str.push(' ');
             }
             println!("{}", temp_str.trim_end());
-            // println!(" ") ;
         } else if data_vec[0] == "type" {
             for j in &data_vec[1..] {
                 if inbuilt_commands.contains(j) {
@@ -226,11 +245,11 @@ fn main() {
             let dir_path = Path::new(new_directory);
             if data_vec[1] == "~" {
                 let home_dir = env::home_dir().unwrap();
-                env::set_current_dir(home_dir);
+                let _ = env::set_current_dir(home_dir);
                 continue;
             }
             if fs::exists(dir_path).unwrap() {
-                env::set_current_dir(new_directory);
+                let _ = env::set_current_dir(new_directory);
             } else {
                 // cd: /does_not_exist: No such file or directory
                 println!(
@@ -243,8 +262,7 @@ fn main() {
             // if the command is this , first one is command name , and the other =s are args
             let command = &data_vec[0];
             let args = &data_vec[1..];
-            // means the file is executable
-            Command::new(command)
+            Command::new(&command)
                 .args(args)
                 .spawn()
                 .unwrap()
@@ -252,7 +270,7 @@ fn main() {
                 .unwrap();
         }
     }
-    // let input = String::from("before\\     after");
+    // let input = String::from("custom_exe_3999 Maria Alice David");
     // let ans = parse_input(&input);
     // println!("{:?}", ans);
 }
@@ -264,10 +282,23 @@ pub fn parse_input(input: &str) -> Vec<String> {
     let mut escape: bool = false;
     let mut curr_str = String::new();
     let input = input.trim_end_matches(|c| c == '\n' || c == '\r');
+    let mut redirect_symbol = false;
+
+    if input.contains('>') {
+        redirect_symbol = true;
+    }
 
     let mut iter = input.chars().peekable();
 
     while let Some(i) = iter.next() {
+        if i == '1' && redirect_symbol {
+            if let Some(&next) = iter.peek() {
+                if next == '>' {
+                    continue;
+                }
+            }
+        }
+
         if i == '\\' && !in_single && !in_double {
             // this is the case ki slash occurs but with no quotes
             escape = true;
@@ -302,6 +333,10 @@ pub fn parse_input(input: &str) -> Vec<String> {
         } else if i != ' ' {
             curr_str.push(i);
         } else if !curr_str.is_empty() {
+            if curr_str == "-1" {
+                curr_str.clear();
+                continue;
+            };
             return_vec.push(curr_str.clone());
             curr_str.clear();
         }
