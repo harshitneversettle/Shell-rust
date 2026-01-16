@@ -259,32 +259,45 @@ fn main() {
 
 pub fn parse_input(input: &str) -> Vec<String> {
     let mut return_vec: Vec<String> = Vec::new();
-    let mut in_quotes: bool = false;
-    let mut in_double : bool = false ;
-    let mut escape : bool = false ;
-    
+    let mut in_single: bool = false;
+    let mut in_double: bool = false;
+    let mut escape: bool = false;
     let mut curr_str = String::new();
+    let input = input.trim_end_matches(|c| c == '\n' || c == '\r');
 
-    // let input = input.trim_end_matches(|c| c == '\n' || c == '\r');
+    let mut iter = input.chars().peekable();
 
-    for i in input.chars() {
-        if i == '\n' {
+    while let Some(i) = iter.next() {
+        if i == '\\' && !in_single && !in_double {
+            // this is the case ki slash occurs but with no quotes
+            escape = true;
             continue;
         }
-        if i == '\\' && !in_quotes && !in_double  {  // '\\' this is fro the identification of the \
-            escape = true ;
-            continue; 
-        }
-        if !in_quotes && !in_double && escape {
+        if i == '\\' && in_double {
+            if let Some(&next) = iter.peek() {
+                if next == '\\' || next == '"' {
+                    curr_str.push(next);
+                    iter.next();
+                } else {
+                    curr_str.push(i);
+                }
+            }
+            continue;
+        } else if i == '\\' && in_single {
             curr_str.push(i);
             continue;
-        }
-        if i == '\''  && !in_double {
-            in_quotes = !in_quotes;
+        } else if escape && !in_double && !in_single {
+            // for the case \ is outside the quotes
+            curr_str.push(i);
+            escape = false;
             continue;
-        } else if i == '"' {
-            in_double = !in_double ;
-        } else if in_quotes || in_double {
+        } else if i == '"' && !in_single {
+            in_double = !in_double;
+            continue;
+        } else if i == '\'' && !in_double {
+            in_single = !in_single;
+            continue;
+        } else if in_single || in_double {
             curr_str.push(i);
         } else if i != ' ' {
             curr_str.push(i);
