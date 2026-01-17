@@ -1,3 +1,4 @@
+use core::error;
 use std::fs::{self, OpenOptions};
 #[allow(unused_imports)]
 use std::io::{self, Write};
@@ -170,7 +171,8 @@ fn main() {
 
         let mut data = String::new();
         io::stdin().read_line(&mut data).unwrap();
-        let data_vec: Vec<String> = parse_input(&data);
+        let mut error_flag = false;
+        let data_vec: Vec<String> = parse_input(&data, &mut error_flag);
         if data_vec.is_empty() {
             continue;
         } else if data_vec.len() == 1 && data_vec[0] == "exit" {
@@ -196,13 +198,24 @@ fn main() {
                 .write(true)
                 .open(filename)
                 .unwrap();
-            Command::new(&command)
-                .args(&args)
-                .stdout(Stdio::from(file))
-                .spawn()
-                .unwrap()
-                .wait()
-                .unwrap();
+
+            if error_flag {
+                Command::new(&command)
+                    .args(&args)
+                    .stderr(Stdio::from(file))
+                    .spawn()
+                    .unwrap()
+                    .wait()
+                    .unwrap();
+            } else {
+                Command::new(&command)
+                    .args(&args)
+                    .stdout(Stdio::from(file))
+                    .spawn()
+                    .unwrap()
+                    .wait()
+                    .unwrap();
+            }
             continue;
         } else if data_vec[0] == "echo" {
             let mut temp_str = String::new();
@@ -270,12 +283,13 @@ fn main() {
                 .unwrap();
         }
     }
-    // let input = String::from("custom_exe_3999 Maria Alice David");
-    // let ans = parse_input(&input);
-    // println!("{:?}", ans);
+    // let input = String::from("-1 nonexistent 2> /tmp/fox/bee.md");
+    // let mut error_flag = false ;
+    // let ans = parse_input(&input , &mut error_flag );
+    // println!("{:?} , {}", ans , error_flag);
 }
 
-pub fn parse_input(input: &str) -> Vec<String> {
+pub fn parse_input(input: &str, error_flag: &mut bool) -> Vec<String> {
     let mut return_vec: Vec<String> = Vec::new();
     let mut in_single: bool = false;
     let mut in_double: bool = false;
@@ -291,6 +305,14 @@ pub fn parse_input(input: &str) -> Vec<String> {
     let mut iter = input.chars().peekable();
 
     while let Some(i) = iter.next() {
+        if i == '2' {
+            if let Some(&next) = iter.peek() {
+                if next == '>' {
+                    *error_flag = true;
+                    continue;
+                }
+            }
+        }
         if i == '1' && redirect_symbol {
             if let Some(&next) = iter.peek() {
                 if next == '>' {
