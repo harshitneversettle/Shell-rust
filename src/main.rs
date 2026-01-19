@@ -2,7 +2,7 @@ use std::fs::{self, OpenOptions};
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::{env, path::Path};
 
 fn main() {
@@ -174,9 +174,11 @@ fn main() {
         let mut redirect = false;
         let mut redirect_pos = 0;
         let mut double_redirect = false;
-        let mut double_redirect_pos = 0 ;
+        let mut double_redirect_pos = 0;
         let mut redirect_err = false;
-        let mut redirect_err_pos = 0 ;
+        let mut redirect_err_pos = 0;
+        let mut double_redirect_err = false;
+        let mut double_redirect_err_pos = 0;
 
         let data_vec: Vec<String> = parse_input(&data);
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
@@ -194,7 +196,11 @@ fn main() {
             } else if i == "2>" {
                 redirect_err = true;
                 redirect_err_pos = idx;
+            } else if i == "2>>" {
+                double_redirect_err = true;
+                double_redirect_err_pos = idx;
             }
+
             idx += 1;
         }
         if data_vec.is_empty() {
@@ -208,7 +214,7 @@ fn main() {
             let pos = redirect_pos as usize;
             let command = &data_vec[0];
             let args = &data_vec[1..pos];
-            let filename = &data_vec[pos+1];
+            let filename = &data_vec[pos + 1];
             let file = match OpenOptions::new()
                 .create(true)
                 .truncate(true)
@@ -248,26 +254,36 @@ fn main() {
             }
             continue;
         } else if redirect_err {
-            let pos = redirect_err_pos as usize ;
-            let command = &data_vec[0] ;
-            let args = &data_vec[1..pos] ;
-            let filename = &data_vec[pos+1] ; 
-            let file = match OpenOptions::new().read(true).write(true).create(true).truncate(true).open(filename){
-                Result::Ok(f) => f, 
+            let pos = redirect_err_pos as usize;
+            let command = &data_vec[0];
+            let args = &data_vec[1..pos];
+            let filename = &data_vec[pos + 1];
+            let file = match OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(filename)
+            {
+                Result::Ok(f) => f,
                 Err(e) => {
-                    println!("{}" , e) ;
+                    println!("{}", e);
                     continue;
                 }
-            } ;
+            };
 
-            match Command::new(command).args(args).stderr(Stdio::from(file)).spawn(){
-                Result::Ok(mut child) => match child.wait(){
-                    Result::Ok(_) => {} 
-                    Err(_) =>{} 
-                } , 
+            match Command::new(command)
+                .args(args)
+                .stderr(Stdio::from(file))
+                .spawn()
+            {
+                Result::Ok(mut child) => match child.wait() {
+                    Result::Ok(_) => {}
+                    Err(_) => {}
+                },
                 Err(_) => {}
             }
-        }else if double_redirect {
+        } else if double_redirect {
             let pos = double_redirect_pos as usize;
             let command = &data_vec[0];
             let filename = &data_vec[pos + 1];
@@ -298,6 +314,37 @@ fn main() {
                     Err(_) => {}
                 },
                 Err(_) => {}
+            }
+        } else if double_redirect_err {
+            let pos = double_redirect_err_pos as usize;
+            let command = &data_vec[0];
+            let args = &data_vec[1..pos];
+            let filename = &data_vec[pos + 1];
+
+            let file = match OpenOptions::new()
+                .create(true)
+                .read(true)
+                .write(true)
+                .append(true)
+                .open(filename)
+            {
+                Result::Ok(f) => f,
+                Err(e) => {
+                    print!("{}llll" , e) ;
+                    continue;
+                }
+            };
+
+            match Command::new(command)
+                .args(args)
+                .stderr(Stdio::from(file))
+                .spawn()
+            {
+                Result::Ok(mut child) => match child.wait() {
+                    Result::Ok(_) => {}
+                    Err(e) => {}
+                },
+                Err(e) => {}
             }
         } else if data_vec[0] == "echo" {
             let mut temp_str = String::new();
