@@ -1,4 +1,3 @@
-use core::error;
 use std::fs::{self, OpenOptions};
 #[allow(unused_imports)]
 use std::io::{self, Write};
@@ -152,13 +151,13 @@ fn main() {
 
     // execute a file
 
+    // read input
+    let path = std::env::var("PATH").unwrap();
+    let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
+    // now i have a vector of paths , now command[i] ko attach kro and find that check if it exists or not
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
-        // read input
-        let path = std::env::var("PATH").unwrap();
-        let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
-        // now i have a vector of paths , now command[i] ko attach kro and find that check if it exists or not
 
         let inbuilt_commands = vec![
             "echo".to_string(),
@@ -167,12 +166,37 @@ fn main() {
             "pwd".to_string(),
             "cd".to_string(),
         ];
-        let symbol1 = String::from(">");
+        // let symbol1 = String::from(">");
 
         let mut data = String::new();
         io::stdin().read_line(&mut data).unwrap();
-        let mut error_flag = false;
-        let data_vec: Vec<String> = parse_input(&data, &mut error_flag);
+        let error_flag = false;
+        let mut redirect = false;
+        let mut redirect_pos = 0;
+        let mut double_redirect = false;
+        let mut double_redirect_pos = 0 ;
+        let mut redirect_err = false;
+        let mut redirect_err_pos = 0 ;
+
+        let data_vec: Vec<String> = parse_input(&data);
+        // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
+        // println!("{:?}", data_vec);
+        // print!("{}" , double_redirect) ;
+
+        let mut idx = 0;
+        for i in &data_vec {
+            if i == ">>" || i == "1>>" {
+                double_redirect = true;
+                double_redirect_pos = idx;
+            } else if i == ">" || i == "1>" {
+                redirect = true;
+                redirect_pos = idx;
+            } else if i == "2>" {
+                redirect_err = true;
+                redirect_err_pos = idx;
+            }
+            idx += 1;
+        }
         if data_vec.is_empty() {
             continue;
         } else if data_vec.len() == 1 && data_vec[0] == "exit" {
@@ -180,50 +204,109 @@ fn main() {
         } else if data_vec.len() == 1 && !inbuilt_commands.contains(&data_vec[0]) {
             println!("{}: command not found", data_vec[0]);
             continue;
-        } else if data_vec.contains(&symbol1) {
+        } else if redirect {
+            let pos = redirect_pos as usize;
             let command = &data_vec[0];
-            let mut args = Vec::new();
-            let mut idx = 1;
-            for i in &data_vec[1..] {
-                if i == ">" {
-                    break;
-                }
-                args.push(i);
-                idx += 1;
-            }
-            let filename = &data_vec[idx + 1];
-            let file = OpenOptions::new()
+            let args = &data_vec[1..pos];
+            let filename = &data_vec[pos+1];
+            let file = match OpenOptions::new()
                 .create(true)
                 .truncate(true)
                 .write(true)
                 .open(filename)
-                .unwrap();
-
+            {
+                Result::Ok(f) => f,
+                Err(e) => {
+                    println!("{}", e);
+                    continue;
+                }
+            };
             if error_flag {
-                Command::new(&command)
-                    .args(&args)
+                match Command::new(&command)
+                    .args(args)
                     .stderr(Stdio::from(file))
                     .spawn()
-                    .unwrap()
-                    .wait()
-                    .unwrap();
+                {
+                    Result::Ok(mut child) => match child.wait() {
+                        Result::Ok(_) => {}
+                        Err(_) => {}
+                    },
+                    Err(_) => {}
+                }
             } else {
-                Command::new(&command)
-                    .args(&args)
+                match Command::new(&command)
+                    .args(args)
                     .stdout(Stdio::from(file))
                     .spawn()
-                    .unwrap()
-                    .wait()
-                    .unwrap();
+                {
+                    Result::Ok(mut child) => match child.wait() {
+                        Result::Ok(_) => {}
+                        Err(_) => {}
+                    },
+                    Err(_) => {}
+                }
             }
             continue;
+        } else if redirect_err {
+            let pos = redirect_err_pos as usize ;
+            let command = &data_vec[0] ;
+            let args = &data_vec[1..pos] ;
+            let filename = &data_vec[pos+1] ; 
+            let file = match OpenOptions::new().read(true).write(true).create(true).truncate(true).open(filename){
+                Result::Ok(f) => f, 
+                Err(e) => {
+                    println!("{}" , e) ;
+                    continue;
+                }
+            } ;
+
+            match Command::new(command).args(args).stderr(Stdio::from(file)).spawn(){
+                Result::Ok(mut child) => match child.wait(){
+                    Result::Ok(_) => {} 
+                    Err(_) =>{} 
+                } , 
+                Err(_) => {}
+            }
+        }else if double_redirect {
+            let pos = double_redirect_pos as usize;
+            let command = &data_vec[0];
+            let filename = &data_vec[pos + 1];
+            let args = &data_vec[1..pos];
+            // print!("{:?} , {:?} , {:?} , {}" , filename , args , command , pos) ;
+            //let mut idx = 1;
+            // println!("{}" , filename) ;
+            let file = match OpenOptions::new()
+                .create(true)
+                .write(true)
+                .read(true)
+                .append(true)
+                .open(filename)
+            {
+                Result::Ok(f) => f,
+                Err(e) => {
+                    eprintln!("{}: {}", filename, e);
+                    continue;
+                }
+            };
+            match Command::new(command)
+                .args(args)
+                .stdout(Stdio::from(file))
+                .spawn()
+            {
+                Result::Ok(mut child) => match child.wait() {
+                    Result::Ok(_) => {}
+                    Err(_) => {}
+                },
+                Err(_) => {}
+            }
         } else if data_vec[0] == "echo" {
             let mut temp_str = String::new();
             for i in &data_vec[1..] {
                 temp_str.push_str(i);
                 temp_str.push(' ');
             }
-            println!("{}", temp_str.trim_end());
+            print!("{}", temp_str.trim_end());
+            println!();
         } else if data_vec[0] == "type" {
             for j in &data_vec[1..] {
                 if inbuilt_commands.contains(j) {
@@ -273,6 +356,7 @@ fn main() {
             }
         } else {
             // if the command is this , first one is command name , and the other =s are args
+            // println!("{:?}" , data_vec) ;
             let command = &data_vec[0];
             let args = &data_vec[1..];
             Command::new(&command)
@@ -283,44 +367,43 @@ fn main() {
                 .unwrap();
         }
     }
-    // let input = String::from("-1 nonexistent 2> /tmp/fox/bee.md");
-    // let mut error_flag = false ;
-    // let ans = parse_input(&input , &mut error_flag );
-    // println!("{:?} , {}", ans , error_flag);
+    // let tests = vec![
+    //     "-1 nonexistent",
+    //     "-1 nonexistent > out.txt",
+    //     "-1 nonexistent 2> err.txt",
+    //     "-1 nonexistent > out.txt 2> err.txt",
+    //     "-1 nonexistent 2> err.txt > out.txt",
+    //     r#"echo "2> not redirect""#,
+    //     r#"echo ">""#,
+    // ];
+
+    // for input in tests {
+    //     let mut error_flag = false;
+    //     let result = parse_input(input, &mut error_flag);
+
+    //     println!("INPUT  : {:?}", input);
+    //     println!("TOKENS : {:?}", result);
+    //     println!("ERROR? : {}", error_flag);
+    //     println!("-----------------------------");
+    // }
 }
 
-pub fn parse_input(input: &str, error_flag: &mut bool) -> Vec<String> {
+pub fn parse_input(
+    input: &str,
+    // error_flag: &mut bool,
+    // double_redirect: &mut bool,
+    // redirect: &mut bool,
+) -> Vec<String> {
     let mut return_vec: Vec<String> = Vec::new();
     let mut in_single: bool = false;
     let mut in_double: bool = false;
     let mut escape: bool = false;
     let mut curr_str = String::new();
     let input = input.trim_end_matches(|c| c == '\n' || c == '\r');
-    let mut redirect_symbol = false;
-
-    if input.contains('>') {
-        redirect_symbol = true;
-    }
 
     let mut iter = input.chars().peekable();
-
+    //print!("{}" , input) ;
     while let Some(i) = iter.next() {
-        if i == '2' {
-            if let Some(&next) = iter.peek() {
-                if next == '>' {
-                    *error_flag = true;
-                    continue;
-                }
-            }
-        }
-        if i == '1' && redirect_symbol {
-            if let Some(&next) = iter.peek() {
-                if next == '>' {
-                    continue;
-                }
-            }
-        }
-
         if i == '\\' && !in_single && !in_double {
             // this is the case ki slash occurs but with no quotes
             escape = true;
@@ -355,10 +438,6 @@ pub fn parse_input(input: &str, error_flag: &mut bool) -> Vec<String> {
         } else if i != ' ' {
             curr_str.push(i);
         } else if !curr_str.is_empty() {
-            if curr_str == "-1" {
-                curr_str.clear();
-                continue;
-            };
             return_vec.push(curr_str.clone());
             curr_str.clear();
         }
