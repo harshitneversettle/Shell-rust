@@ -2,158 +2,17 @@ use std::fs::{self, OpenOptions};
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::{env, path::Path};
 
+use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use crossterm::terminal::enable_raw_mode;
+
 fn main() {
-    // print!("$ ") ;
-    // io::stdout().flush().unwrap() ;
-    // let mut data = String::new() ;
-    // io::stdin().read_line(&mut data).unwrap() ;
-    // println!("{}: command not found" , data.trim());
-
-    // Repl implementation
-    // loop{
-    //     // REPL
-    //     print!("$ ") ;
-    //     io::stdout().flush().unwrap() ;
-
-    //     let mut data = String::new() ;
-    //     io::stdin().read_line(&mut data).unwrap() ;
-    //     let command = data.trim() ;
-    //     println!("{}: command not found" , command) ;
-    // }
-
-    // inbuilt exit implementation
-    // loop {
-    //     print!("$ ") ;
-    //     io::stdout().flush().unwrap() ;
-
-    //     let mut data = String::new() ;
-    //     io::stdin().read_line(&mut data).unwrap() ;
-    //     let command = data.trim() ;
-
-    //     if command == "exit" {break} ;
-    //     println!("{}: command not found" , command) ;
-    // }
-
-    // echo implementation
-    // loop{
-    //     print!("$ ") ;
-    //     io::stdout().flush().unwrap() ;
-
-    //     let mut data = String::new() ;
-    //     io::stdin().read_line(&mut data).unwrap() ;
-    //     let command = data.trim() ;
-
-    //     if command == "exit" {
-    //         break ;
-    //     }
-
-    //     if command.starts_with("echo") {
-    //         let mut echo_data = String::new() ;
-    //         for i in command.split(" "){
-    //             if i == "echo" {continue} ;
-    //             echo_data.push_str(i) ;
-    //             echo_data.push_str(" ") ;
-    //         }
-    //         println!("{}" , echo_data.trim())
-    //     }else {
-    //         println!("{}: command not found" , command) ;
-    //     }
-    // }
-
-    // The type Builtin
-    // loop{
-    //     print!("$ ") ;
-    //     io::stdout().flush().unwrap() ;
-
-    //     let inbuilt_commands = ["echo", "exit", "type"];
-    //     let mut data = String::new() ;
-    //     io::stdin().read_line(&mut data).unwrap() ;
-    //     let command = data.trim_end() ;
-    //     if command == "exit" {break} ;
-    //     let commands_vec : Vec<&str> = command.split_whitespace().collect() ;
-    //     if commands_vec[0] == "type" {
-    //         for i in &commands_vec[1..]{
-    //             if inbuilt_commands.contains(i) {
-    //                 println!("{} is a shell builtin" , i) ;
-    //             }else{
-    //                 println!("{} not found" , i) ;
-    //             }
-    //         }
-    //     }else if commands_vec[0] == "echo" {
-    //         for i in &commands_vec[1..]{
-    //             print!("{} " , i) ;
-    //         }
-    //         println!();
-    //     }else{
-    //         println!("{}: not found" , command) ;
-    //     }
-    // }
-
-    // Path , locate the executable file
-    // loop {
-    //     print!("$ ");
-    //     io::stdout().flush().unwrap();
-    //     let path = std::env::var("PATH").unwrap();
-    //     let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
-    //     // now i have a vector of paths , now command[i] ko attach kro and find that check if it exists or not
-
-    //     let inbuilt_commands = ["echo", "exit", "type"];
-    //     let mut data = String::new();
-    //     io::stdin().read_line(&mut data).unwrap();
-    //     let data_vec: Vec<&str> = data.split_whitespace().collect();
-
-    //     if data_vec.len() == 1 && data_vec[0] == "exit" {
-    //         break;
-    //     }
-    //     if data_vec.len() == 1 && !inbuilt_commands.contains(&data_vec[0]) {
-    //         println!("{}: command not found", data_vec[0]);
-    //     } else {
-    //         if inbuilt_commands.contains(&data_vec[1]) {
-    //             println!("{} is a shell builtin", data_vec[1]);
-    //             continue;
-    //         }
-
-    //         if data_vec[0] == "echo" {
-    //             for i in &data_vec[1..] {
-    //                 print!("{} ", i);
-    //             }
-    //             println!();
-    //         } else if data_vec[0] == "type" {
-    //             for j in &data_vec[1..] {
-    //                 let mut flag: bool = false;
-    //                 for i in &path_seperated {
-    //                     let path_j = Path::new(&j);
-    //                     let full_path = i.join(path_j);
-    //                     // check if the path generated exists or not
-    //                     if full_path.exists() {
-    //                         // now check if the path is executable
-    //                         let mode = full_path.metadata().unwrap().permissions().mode();
-    //                         if (mode & 0o111) != 0 {
-    //                             // => the path is executable
-    //                             flag = true;
-    //                             println!("{} is {}", j, full_path.display());
-    //                             break;
-    //                         }
-    //                     }
-    //                 }
-    //                 if !flag {
-    //                     println!("{}: not found", j);
-    //                 }
-    //             }
-    //         } else {
-    //             println!("{}: command not found", data);
-    //         }
-    //     }
-    // }
-
-    // execute a file
-
-    // read input
+    enable_raw_mode().unwrap();
     let path = std::env::var("PATH").unwrap();
     let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
+
     // now i have a vector of paths , now command[i] ko attach kro and find that check if it exists or not
     loop {
         print!("$ ");
@@ -169,7 +28,44 @@ fn main() {
         // let symbol1 = String::from(">");
 
         let mut data = String::new();
-        io::stdin().read_line(&mut data).unwrap();
+        // io::stdin().read_line(&mut data).unwrap();
+        // taking input
+        loop {
+            if let Event::Key(key) = event::read().unwrap() {
+                if key.modifiers.contains(KeyModifiers::CONTROL)&& key.code == KeyCode::Char('c')  {
+                    crossterm::terminal::disable_raw_mode().unwrap();
+                    std::process::exit(0);   // ends the whole process immediately 
+                }
+                match key.code {
+                    KeyCode::Char(c) => {
+                        data.push(c);
+                        print!("{}", c);
+                        io::stdout().flush().unwrap();
+                    }
+                    KeyCode::Tab => {
+                        let result = auto_complete(&data);
+                        data.clear();
+                        data.push_str(&result);
+                        clear_line();
+                        print!("$ {}", data);
+                        io::stdout().flush().unwrap();
+                        continue;
+                    }
+                    KeyCode::Enter => {
+                        break;
+                    }
+                    KeyCode::Backspace => {
+                       if !data.is_empty(){
+                        clear_line() ;
+                        data.pop();
+                        print!("$ {}", data);
+                        io::stdout().flush().unwrap();
+                       }
+                    }
+                    _ => {}
+                }
+            }
+        }
         let error_flag = false;
         let mut redirect = false;
         let mut redirect_pos = 0;
@@ -200,7 +96,6 @@ fn main() {
                 double_redirect_err = true;
                 double_redirect_err_pos = idx;
             }
-
             idx += 1;
         }
         if data_vec.is_empty() {
@@ -320,7 +215,6 @@ fn main() {
             let command = &data_vec[0];
             let args = &data_vec[1..pos];
             let filename = &data_vec[pos + 1];
-
             let file = match OpenOptions::new()
                 .create(true)
                 .read(true)
@@ -330,11 +224,10 @@ fn main() {
             {
                 Result::Ok(f) => f,
                 Err(e) => {
-                    print!("{}llll" , e) ;
+                    print!("{}llll", e);
                     continue;
                 }
             };
-
             match Command::new(command)
                 .args(args)
                 .stderr(Stdio::from(file))
@@ -493,4 +386,25 @@ pub fn parse_input(
         return_vec.push(curr_str);
     }
     return_vec
+}
+
+fn auto_complete(data: &str) -> String {
+    let mut res = String::new();
+    res.push_str(data);
+    let inventory = vec!["exit", "echo", "harshit"];
+    for i in inventory {
+        if i.starts_with(data) {
+            let pos = data.len();
+            let remaning = &i[pos..];
+            res.push_str(remaning);
+            break;
+        }
+    }
+    res.push(' ');
+    return res;
+}
+
+fn clear_line() {
+    print!("\r\x1b[2K");
+    io::stdout().flush().unwrap();
 }
