@@ -41,7 +41,15 @@ fn main() {
                         print!("{}", c);
                         io::stdout().flush().unwrap();
                     }
-                    
+                    KeyCode::Tab => {
+                        let result = auto_complete(&data);
+                        data.clear();
+                        print!("\r");
+                        data.push_str(&result);
+                        print!("$ {}", data);
+                        io::stdout().flush().unwrap();
+                        continue;
+                    }
                     
                    
                     _ => {}
