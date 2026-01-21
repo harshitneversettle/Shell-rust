@@ -50,7 +50,13 @@ fn main() {
                         io::stdout().flush().unwrap();
                         continue;
                     }
-                    
+                    KeyCode::Enter => {
+                        println!();
+                        print!("\r");
+                        disable_raw_mode().unwrap();
+                        io::stdout().flush().unwrap();
+                        break;
+                    }
                     KeyCode::Backspace => {
                         if !data.is_empty() {
                             data.pop();
