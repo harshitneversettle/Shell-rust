@@ -6,15 +6,15 @@ use std::process::{Command, Stdio};
 use std::{env, path::Path};
 
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
-use crossterm::terminal::enable_raw_mode;
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 fn main() {
-    enable_raw_mode().unwrap();
     let path = std::env::var("PATH").unwrap();
     let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
 
     // now i have a vector of paths , now command[i] ko attach kro and find that check if it exists or not
     loop {
+        enable_raw_mode().unwrap();
         print!("$ ");
         io::stdout().flush().unwrap();
 
@@ -26,15 +26,14 @@ fn main() {
             "cd".to_string(),
         ];
         // let symbol1 = String::from(">");
-
         let mut data = String::new();
         // io::stdin().read_line(&mut data).unwrap();
         // taking input
         loop {
             if let Event::Key(key) = event::read().unwrap() {
-                if key.modifiers.contains(KeyModifiers::CONTROL)&& key.code == KeyCode::Char('c')  {
+                if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
                     crossterm::terminal::disable_raw_mode().unwrap();
-                    std::process::exit(0);   // ends the whole process immediately 
+                    std::process::exit(0); // ends the whole process immediately
                 }
                 match key.code {
                     KeyCode::Char(c) => {
@@ -42,30 +41,14 @@ fn main() {
                         print!("{}", c);
                         io::stdout().flush().unwrap();
                     }
-                    KeyCode::Tab => {
-                        let result = auto_complete(&data);
-                        data.clear();
-                        data.push_str(&result);
-                        clear_line();
-                        print!("$ {}", data);
-                        io::stdout().flush().unwrap();
-                        continue;
-                    }
-                    KeyCode::Enter => {
-                        break;
-                    }
-                    KeyCode::Backspace => {
-                       if !data.is_empty(){
-                        clear_line() ;
-                        data.pop();
-                        print!("$ {}", data);
-                        io::stdout().flush().unwrap();
-                       }
-                    }
+                    
+                    
+                   
                     _ => {}
                 }
             }
         }
+
         let error_flag = false;
         let mut redirect = false;
         let mut redirect_pos = 0;
@@ -75,12 +58,9 @@ fn main() {
         let mut redirect_err_pos = 0;
         let mut double_redirect_err = false;
         let mut double_redirect_err_pos = 0;
-
         let data_vec: Vec<String> = parse_input(&data);
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
-        // println!("{:?}", data_vec);
         // print!("{}" , double_redirect) ;
-
         let mut idx = 0;
         for i in &data_vec {
             if i == ">>" || i == "1>>" {
@@ -224,7 +204,7 @@ fn main() {
             {
                 Result::Ok(f) => f,
                 Err(e) => {
-                    print!("{}llll", e);
+                    print!("{}", e);
                     continue;
                 }
             };
@@ -299,12 +279,24 @@ fn main() {
             // println!("{:?}" , data_vec) ;
             let command = &data_vec[0];
             let args = &data_vec[1..];
-            Command::new(&command)
+            let mut found = false;
+            for i in &path_seperated{
+                let full_cmd = i.join(command) ;
+                if full_cmd.exists(){
+                    Command::new(&full_cmd)
                 .args(args)
                 .spawn()
                 .unwrap()
                 .wait()
                 .unwrap();
+                found = true;
+                break;
+                }
+                 
+            }
+            if !found {
+                println!("{}: command not found", command);
+            }
         }
     }
     // let tests = vec![
@@ -391,20 +383,16 @@ pub fn parse_input(
 fn auto_complete(data: &str) -> String {
     let mut res = String::new();
     res.push_str(data);
-    let inventory = vec!["exit", "echo", "harshit"];
+    let inventory = vec!["exit", "echo"];
     for i in inventory {
         if i.starts_with(data) {
             let pos = data.len();
             let remaning = &i[pos..];
             res.push_str(remaning);
+            res.push(' ');
             break;
         }
     }
-    res.push(' ');
-    return res;
-}
 
-fn clear_line() {
-    print!("\r\x1b[2K");
-    io::stdout().flush().unwrap();
+    return res;
 }
