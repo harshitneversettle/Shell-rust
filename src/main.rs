@@ -51,7 +51,13 @@ fn main() {
                         continue;
                     }
                     
-                   
+                    KeyCode::Backspace => {
+                        if !data.is_empty() {
+                            data.pop();
+                            print!("\u{0008} \u{0008}"); // this only moves the cursor/pointer to the left
+                            io::stdout().flush().unwrap();
+                        }
+                    }
                     _ => {}
                 }
             }
