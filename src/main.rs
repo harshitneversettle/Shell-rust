@@ -1,11 +1,14 @@
 use std::fs::{self, OpenOptions};
+// use std::io::stdout;
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::process::{Command, Stdio};
 use std::{env, path::Path};
 
+// use crossterm::cursor::MoveTo;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+// use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 fn main() {
@@ -42,21 +45,36 @@ fn main() {
                         io::stdout().flush().unwrap();
                     }
                     KeyCode::Tab => {
-                        let result = auto_complete(&data);
-                        data.clear();
-                        print!("\r");
-                        data.push_str(&result);
-                        print!("$ {}", data);
-                        io::stdout().flush().unwrap();
-                        continue;
+                        let mut no_match = false;
+                        let result = auto_complete(&data, &mut no_match);
+                        if no_match {
+                            print!("\x07");
+                            io::stdout().flush().unwrap();
+                        } else {
+                            data.clear();
+                            print!("\r");
+                            data.push_str(&result);
+                            print!("$ {}", data);
+                            io::stdout().flush().unwrap();
+                            continue;
+                        }
                     }
+                    // KeyCode::Char('j') if key.modifiers == KeyModifiers::CONTROL => {
+                    //     println!();
+                    //     print!("\r");
+                    //     io::stdout().flush().unwrap();
+                    //     disable_raw_mode().unwrap();
+                    //     break;
+                    // }
                     KeyCode::Enter => {
+                        // there is a crossterm error/bug , the newline(0xA) is mapped with ctrl+J , so i also have to handle ctrl+J ;
                         println!();
                         print!("\r");
-                        disable_raw_mode().unwrap();
                         io::stdout().flush().unwrap();
+                        disable_raw_mode().unwrap();
                         break;
                     }
+                    
                     KeyCode::Backspace => {
                         if !data.is_empty() {
                             data.pop();
@@ -235,9 +253,13 @@ fn main() {
             {
                 Result::Ok(mut child) => match child.wait() {
                     Result::Ok(_) => {}
-                    Err(e) => {}
+                    Err(e) => {
+                        println!("{}", e);
+                    }
                 },
-                Err(e) => {}
+                Err(e) => {
+                    println!("{}", e);
+                }
             }
         } else if data_vec[0] == "echo" {
             let mut temp_str = String::new();
@@ -300,19 +322,18 @@ fn main() {
             let command = &data_vec[0];
             let args = &data_vec[1..];
             let mut found = false;
-            for i in &path_seperated{
-                let full_cmd = i.join(command) ;
-                if full_cmd.exists(){
+            for i in &path_seperated {
+                let full_cmd = i.join(command);
+                if full_cmd.exists() {
                     Command::new(&full_cmd)
-                .args(args)
-                .spawn()
-                .unwrap()
-                .wait()
-                .unwrap();
-                found = true;
-                break;
+                        .args(args)
+                        .spawn()
+                        .unwrap()
+                        .wait()
+                        .unwrap();
+                    found = true;
+                    break;
                 }
-                 
             }
             if !found {
                 println!("{}: command not found", command);
@@ -400,18 +421,30 @@ pub fn parse_input(
     return_vec
 }
 
-fn auto_complete(data: &str) -> String {
+fn auto_complete(data: &str, no_match: &mut bool) -> String {
     let mut res = String::new();
     res.push_str(data);
-    let inventory = vec!["exit", "echo"];
+    let res_len = res.len();
+    let data2: Vec<&str> = data.split_whitespace().collect();
+    if data2.is_empty() {
+        *no_match = true;
+        return res;
+    }
+    let to_complete = data2[data2.len() - 1];
+    let inventory = vec!["exit", "echo", "type", "pwd"];
     for i in inventory {
-        if i.starts_with(data) {
-            let pos = data.len();
+        if i.starts_with(to_complete) {
+            let pos = to_complete.len();
             let remaning = &i[pos..];
             res.push_str(remaning);
             res.push(' ');
             break;
         }
+    }
+    if res.len() == res_len {
+        *no_match = true;
+    } else {
+        *no_match = false;
     }
 
     return res;
