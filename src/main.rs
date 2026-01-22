@@ -1,10 +1,11 @@
 use std::fs::{self, OpenOptions};
+use std::io::stdin;
 // use std::io::stdout;
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{self, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{self, Command, CommandArgs, Stdio};
 use std::result;
 use std::{env, path::Path};
 
@@ -102,9 +103,11 @@ fn main() {
         let mut redirect_err_pos = 0;
         let mut double_redirect_err = false;
         let mut double_redirect_err_pos = 0;
+        let mut pipe = false ;
+        let mut pipe_pos = 0 ;
         let data_vec: Vec<String> = parse_input(&data);
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
-        // print!("{}" , double_redirect) ;
+        // println!("{:?}" , data_vec) ;
         let mut idx = 0;
         for i in &data_vec {
             if i == ">>" || i == "1>>" {
@@ -119,6 +122,9 @@ fn main() {
             } else if i == "2>>" {
                 double_redirect_err = true;
                 double_redirect_err_pos = idx;
+            } else if i == "|" {
+                pipe = true ;
+                pipe_pos = idx ;
             }
             idx += 1;
         }
@@ -267,6 +273,20 @@ fn main() {
                     println!("{}", e);
                 }
             }
+        } else if pipe {
+            let command_1 = &data_vec[0] ;
+            let command_2 = &data_vec[pipe_pos+1] ;
+            let arguments_1 = &data_vec[1..pipe_pos] ;
+            let arguments_2 = &data_vec[pipe_pos+2..] ;
+            // Command::new("ls").stdout(Stdio::piped()).output();
+            let mut p1 = Command::new(command_1).args(arguments_1).stdout(Stdio::piped()).spawn().unwrap() ;  
+            let output_1 = p1.stdout.take().unwrap() ; // take means take the ownership from p1
+
+            let mut p2 = Command::new(command_2).args(arguments_2).stdin(Stdio::from(output_1)).spawn().unwrap() ;
+            p1.wait().unwrap() ;
+            p2.wait().unwrap() ;
+
+            // println!("{} , {} , {:?} , {:?}" , command_1 , command_2 , arguments_1 , arguments_2) ;
         } else if data_vec[0] == "echo" {
             let mut temp_str = String::new();
             for i in &data_vec[1..] {
@@ -363,7 +383,7 @@ fn main() {
     //     println!("INPUT  : {:?}", input);
     //     println!("TOKENS : {:?}", result);
     //     println!("ERROR? : {}", error_flag);
-    //     println!("-----------------------------");
+    //     println!("-----------------------------");f
     // }
 }
 
