@@ -477,7 +477,7 @@ fn auto_complete_exe(data: &str, no_match: &mut bool, path_seperated: &Vec<PathB
         for j in read {
             let filename = j.as_ref().unwrap().file_name().into_string().unwrap();
             let mode = j.as_ref().unwrap().metadata().unwrap().mode() ;
-            if filename.starts_with(&to_complete) {
+            if mode & 0o111 != 0 && filename.starts_with(&to_complete) {
                 res = filename ;
                 res.push(' ') ;
                 *no_match = false ;
