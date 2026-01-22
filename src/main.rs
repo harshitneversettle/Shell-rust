@@ -2,8 +2,10 @@ use std::fs::{self, OpenOptions};
 // use std::io::stdout;
 #[allow(unused_imports)]
 use std::io::{self, Write};
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::path::{self, PathBuf};
 use std::process::{Command, Stdio};
+use std::result;
 use std::{env, path::Path};
 
 // use crossterm::cursor::MoveTo;
@@ -46,7 +48,11 @@ fn main() {
                     }
                     KeyCode::Tab => {
                         let mut no_match = false;
-                        let result = auto_complete(&data, &mut no_match);
+                        let mut result = auto_complete(&data, &mut no_match);
+                        if no_match {
+                            result = auto_complete_exe(&data, &mut no_match, &path_seperated);
+                            // println!("{}" , path) ;
+                        }
                         if no_match {
                             print!("\x07");
                             io::stdout().flush().unwrap();
@@ -74,7 +80,7 @@ fn main() {
                         disable_raw_mode().unwrap();
                         break;
                     }
-                    
+
                     KeyCode::Backspace => {
                         if !data.is_empty() {
                             data.pop();
@@ -448,4 +454,42 @@ fn auto_complete(data: &str, no_match: &mut bool) -> String {
     }
 
     return res;
+}
+
+fn auto_complete_exe(data: &str, no_match: &mut bool, path_seperated: &Vec<PathBuf>) -> String {
+    // println!("{:?}" , path_seperated) ;
+    // println!("{}" , data) ;
+    let mut res = data.to_string();
+    let pos = res.len() ;
+    let data2 : Vec<&str> = data.split_whitespace().collect() ;
+    if data2.is_empty() {
+        *no_match = true;
+        return res;
+    }
+    let mut to_complete = data2[data2.len()-1] ;
+    // println!("{}kkkk" , to_complete) ;
+    // println!("{:?}" , path_seperated) ;
+    // let mut filenames = Vec::new() ;
+    
+    for i in path_seperated {
+        let read = i.read_dir().unwrap() ;
+        // let mut temp = Vec::new() ;
+        for j in read {
+            let filename = j.as_ref().unwrap().file_name().into_string().unwrap();
+            let mode = j.as_ref().unwrap().metadata().unwrap().mode() ;
+            if filename.starts_with(&to_complete) {
+                res = filename ;
+                res.push(' ') ;
+                *no_match = false ;
+                return res.to_string() ;
+            }
+            // temp.push(filename);
+        }
+        // filenames.push(temp);
+    }
+    // println!("{:?}" , filenames) ;
+    if res.len() == pos {
+        *no_match = true ;
+    }
+    res.to_string() 
 }

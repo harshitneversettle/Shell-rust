@@ -1,4 +1,4 @@
-#!/bin/sh
+c#!/bin/sh
 #
 # This script is used to run your program on CodeCrafters
 #
