@@ -1,9 +1,8 @@
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 // use std::io::stdout;
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::os::unix::process;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::{env, path::Path};
@@ -106,7 +105,9 @@ fn main() {
         let data_vec: Vec<String> = parse_input(&data);
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
         // println!("{:?}" , data_vec) ;
-        for (idx , i) in data_vec.iter().enumerate() {
+
+
+        for (idx, i) in data_vec.iter().enumerate() {
             match i.as_str() {
                 ">>" | "1>>" => {
                     double_redirect = true;
@@ -311,43 +312,55 @@ pub fn parse_input(
     let mut iter = input.chars().peekable();
     //print!("{}" , input) ;
     while let Some(i) = iter.next() {
-        if i == '\\' && !in_single && !in_double {
-            // this is the case ki slash occurs but with no quotes
-            escape = true;
-            continue;
-        }
-        if i == '\\' && in_double {
-            if let Some(&next) = iter.peek() {
-                if next == '\\' || next == '"' {
-                    curr_str.push(next);
-                    iter.next();
-                } else {
-                    curr_str.push(i);
-                }
+        match i {
+            // in match , conditions goes in if , PATTERN if condition => { ... }
+            '\\' if !in_single && !in_double => {
+                escape = true;
+                continue;
             }
-            continue;
-        } else if i == '\\' && in_single {
-            curr_str.push(i);
-            continue;
-        } else if escape && !in_double && !in_single {
-            // for the case \ is outside the quotes
-            curr_str.push(i);
-            escape = false;
-            continue;
-        } else if i == '"' && !in_single {
-            in_double = !in_double;
-            continue;
-        } else if i == '\'' && !in_double {
-            in_single = !in_single;
-            continue;
-        } else if in_single || in_double {
-            curr_str.push(i);
-        } else if i != ' ' {
-            curr_str.push(i);
-        } else if !curr_str.is_empty() {
-            return_vec.push(curr_str.clone());
-            curr_str.clear();
+            '\\' if in_double => {
+                if let Some(&next) = iter.peek() {
+                    if next == '\\' || next == '"' {
+                        curr_str.push(next);
+                        iter.next();
+                    } else {
+                        curr_str.push(i);
+                    }
+                }
+                continue;
+            }
+            '\\' if in_single => {
+                curr_str.push(i);
+                continue;
+            }
+            _ if escape && !in_double && !in_single => {
+                // is saari hi condition hai , start with _
+                // for the case \ is outside the quotes
+                curr_str.push(i);
+                escape = false;
+                continue;
+            }
+            _ if i != ' ' => {
+                curr_str.push(i);
+            }
+            '"' if !in_single => {
+                in_double = !in_double;
+                continue;
+            }
+            '\'' if !in_double => {
+                in_single = !in_single;
+                continue;
+            }
+            _ if in_single || in_double => {
+                curr_str.push(i);
+            }
+            _ if !curr_str.is_empty() => {
+                return_vec.push(curr_str.clone());
+                curr_str.clear();
+            }
+            _ => {}
         }
+        
     }
     if !curr_str.is_empty() {
         return_vec.push(curr_str);
@@ -561,3 +574,5 @@ fn exe_redirect_err(data_vec: &Vec<String>, redirect_err_pos: &usize) {
         Err(_) => {}
     }
 }
+
+// this is like , make input as peekabnle , and jbtk there is peekable loop chalao , and if i have to check any i's next element , i just have to do let some(p) = i.next() annd do operations on that
