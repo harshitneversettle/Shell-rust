@@ -1,8 +1,9 @@
-use std::fs::{self, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 // use std::io::stdout;
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::os::unix::process;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::{env, path::Path};
@@ -133,63 +134,11 @@ fn main() {
             println!("{}: command not found", data_vec[0]);
             continue;
         } else if redirect {
-            redirect_1(&data_vec, &redirect_pos);
-            if error_flag {
-                match Command::new(&command)
-                    .args(args)
-                    .stderr(Stdio::from(file))
-                    .spawn()
-                {
-                    Result::Ok(mut child) => match child.wait() {
-                        Result::Ok(_) => {}
-                        Err(_) => {}
-                    },
-                    Err(_) => {}
-                }
-            } else {
-                match Command::new(&command)
-                    .args(args)
-                    .stdout(Stdio::from(file))
-                    .spawn()
-                {
-                    Result::Ok(mut child) => match child.wait() {
-                        Result::Ok(_) => {}
-                        Err(_) => {}
-                    },
-                    Err(_) => {}
-                }
-            }
+            exe_redirect(&data_vec, &redirect_pos);
             continue;
         } else if redirect_err {
-            let pos = redirect_err_pos as usize;
-            let command = &data_vec[0];
-            let args = &data_vec[1..pos];
-            let filename = &data_vec[pos + 1];
-            let file = match OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(filename)
-            {
-                Result::Ok(f) => f,
-                Err(e) => {
-                    println!("{}", e);
-                    continue;
-                }
-            };
-
-            match Command::new(command)
-                .args(args)
-                .stderr(Stdio::from(file))
-                .spawn()
-            {
-                Result::Ok(mut child) => match child.wait() {
-                    Result::Ok(_) => {}
-                    Err(_) => {}
-                },
-                Err(_) => {}
-            }
+            exe_redirect_err(&data_vec, &redirect_err_pos);
+            continue;
         } else if double_redirect {
             let pos = double_redirect_pos as usize;
             let command = &data_vec[0];
@@ -315,7 +264,9 @@ fn main() {
         } else {
             // if the command is this , first one is command name , and the other =s are args
             // println!("{:?}" , data_vec) ;
-            exe_command(&data_vec, &path_seperated);
+            let command = &data_vec[0];
+            let args = &data_vec[1..].to_vec();
+            exe_command(&command, args, &path_seperated);
         }
     }
     // let tests = vec![
@@ -486,9 +437,7 @@ fn exe_echo(data_vec: &Vec<String>) {
     println!();
 }
 
-fn exe_command(data_vec: &Vec<String>, path_seperated: &Vec<PathBuf>) {
-    let command = &data_vec[0];
-    let args = &data_vec[1..];
+fn exe_command(command: &str, args: &Vec<String>, path_seperated: &Vec<PathBuf>) {
     let mut found = false;
     for i in path_seperated {
         let full_cmd = i.join(command);
@@ -546,7 +495,7 @@ fn exe_type(data_vec: &Vec<String>, path_seperated: &Vec<PathBuf>, inbuilt_comma
     }
 }
 
-fn redirect_1(data_vec: &Vec<String>, redirect_pos: &usize) {
+fn exe_redirect(data_vec: &Vec<String>, redirect_pos: &usize) {
     let pos = *redirect_pos as usize;
     let command = &data_vec[0];
     let args = &data_vec[1..pos];
@@ -557,9 +506,53 @@ fn redirect_1(data_vec: &Vec<String>, redirect_pos: &usize) {
         .write(true)
         .open(filename)
     {
+        Result::Ok(f) => f, // both the arms of match should handle the same type , like file file , or none none , etc etc
+        Err(e) => {
+            println!("{}", e);
+            std::process::exit(1); // its type is !
+        }
+    };
+    match Command::new(&command)
+        .args(args)
+        .stdout(Stdio::from(file))
+        .spawn()
+    {
+        Result::Ok(mut child) => match child.wait() {
+            Result::Ok(_) => {}
+            Err(_) => {}
+        },
+        Err(_) => {}
+    }
+}
+
+fn exe_redirect_err(data_vec: &Vec<String>, redirect_err_pos: &usize) {
+    let pos = *redirect_err_pos as usize;
+    let command = &data_vec[0];
+    let args = &data_vec[1..pos];
+    let filename = &data_vec[pos + 1];
+    let file = match OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(filename)
+    {
         Result::Ok(f) => f,
         Err(e) => {
             println!("{}", e);
+            std::process::exit(1);
         }
     };
+
+    match Command::new(command)
+        .args(args)
+        .stderr(Stdio::from(file))
+        .spawn()
+    {
+        Result::Ok(mut child) => match child.wait() {
+            Result::Ok(_) => {}
+            Err(_) => {}
+        },
+        Err(_) => {}
+    }
 }
