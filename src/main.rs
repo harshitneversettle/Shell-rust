@@ -1,12 +1,10 @@
 use std::fs::{self, OpenOptions};
-use std::io::stdin;
 // use std::io::stdout;
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::path::{self, PathBuf};
-use std::process::{self, Command, CommandArgs, Stdio};
-use std::result;
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::{env, path::Path};
 
 // use crossterm::cursor::MoveTo;
@@ -23,7 +21,6 @@ fn main() {
         enable_raw_mode().unwrap();
         print!("$ ");
         io::stdout().flush().unwrap();
-
         let inbuilt_commands = vec![
             "echo".to_string(),
             "exit".to_string(),
@@ -103,8 +100,8 @@ fn main() {
         let mut redirect_err_pos = 0;
         let mut double_redirect_err = false;
         let mut double_redirect_err_pos = 0;
-        let mut pipe = false ;
-        let mut pipe_pos = 0 ;
+        let mut pipe = false;
+        let mut pipe_pos = 0;
         let data_vec: Vec<String> = parse_input(&data);
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
         // println!("{:?}" , data_vec) ;
@@ -123,8 +120,8 @@ fn main() {
                 double_redirect_err = true;
                 double_redirect_err_pos = idx;
             } else if i == "|" {
-                pipe = true ;
-                pipe_pos = idx ;
+                pipe = true;
+                pipe_pos = idx;
             }
             idx += 1;
         }
@@ -136,22 +133,7 @@ fn main() {
             println!("{}: command not found", data_vec[0]);
             continue;
         } else if redirect {
-            let pos = redirect_pos as usize;
-            let command = &data_vec[0];
-            let args = &data_vec[1..pos];
-            let filename = &data_vec[pos + 1];
-            let file = match OpenOptions::new()
-                .create(true)
-                .truncate(true)
-                .write(true)
-                .open(filename)
-            {
-                Result::Ok(f) => f,
-                Err(e) => {
-                    println!("{}", e);
-                    continue;
-                }
-            };
+            redirect_1(&data_vec, &redirect_pos);
             if error_flag {
                 match Command::new(&command)
                     .args(args)
@@ -274,53 +256,41 @@ fn main() {
                 }
             }
         } else if pipe {
-            let command_1 = &data_vec[0] ;
-            let command_2 = &data_vec[pipe_pos+1] ;
-            let arguments_1 = &data_vec[1..pipe_pos] ;
-            let arguments_2 = &data_vec[pipe_pos+2..] ;
+            let command_1 = &data_vec[0];
+            let command_2 = &data_vec[pipe_pos + 1];
+            let arguments_1 = &data_vec[1..pipe_pos];
+            let arguments_2 = &data_vec[pipe_pos + 2..];
+            if inbuilt_commands.contains(command_2) {
+                if command_2 == "echo" {
+                    exe_echo(&data_vec);
+                }
+                if command_2 == "type" {
+                    exe_type(&data_vec, &path_seperated, &inbuilt_commands);
+                }
+            }
             // Command::new("ls").stdout(Stdio::piped()).output();
-            let mut p1 = Command::new(command_1).args(arguments_1).stdout(Stdio::piped()).spawn().unwrap() ;  
-            let output_1 = p1.stdout.take().unwrap() ; // take means take the ownership from p1
+            else {
+                let mut p1 = Command::new(command_1)
+                    .args(arguments_1)
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .unwrap();
+                let output_1 = p1.stdout.take().unwrap(); // take means take the ownership from p1
 
-            let mut p2 = Command::new(command_2).args(arguments_2).stdin(Stdio::from(output_1)).spawn().unwrap() ;
-            p1.wait().unwrap() ;
-            p2.wait().unwrap() ;
+                let mut p2 = Command::new(command_2)
+                    .args(arguments_2)
+                    .stdin(Stdio::from(output_1))
+                    .spawn()
+                    .unwrap();
+                p1.wait().unwrap();
+                p2.wait().unwrap();
+            }
 
             // println!("{} , {} , {:?} , {:?}" , command_1 , command_2 , arguments_1 , arguments_2) ;
         } else if data_vec[0] == "echo" {
-            let mut temp_str = String::new();
-            for i in &data_vec[1..] {
-                temp_str.push_str(i);
-                temp_str.push(' ');
-            }
-            print!("{}", temp_str.trim_end());
-            println!();
+            exe_echo(&data_vec);
         } else if data_vec[0] == "type" {
-            for j in &data_vec[1..] {
-                if inbuilt_commands.contains(j) {
-                    println!("{} is a shell builtin", j);
-                    continue;
-                }
-                let mut flag: bool = false;
-                for i in &path_seperated {
-                    let path_j = Path::new(&j);
-                    let full_path = i.join(path_j);
-                    // check if the path generated exists or not
-                    if full_path.exists() {
-                        // now check if the path is executable
-                        let mode = full_path.metadata().unwrap().permissions().mode();
-                        if (mode & 0o111) != 0 {
-                            // => the path is executable
-                            flag = true;
-                            println!("{} is {}", j, full_path.display());
-                            break;
-                        }
-                    }
-                }
-                if !flag {
-                    println!("{}: not found", j);
-                }
-            }
+            exe_type(&data_vec, &path_seperated, &inbuilt_commands);
         } else if data_vec[0] == "pwd" {
             let print_wd = env::current_dir().unwrap();
             println!("{}", print_wd.display());
@@ -345,25 +315,7 @@ fn main() {
         } else {
             // if the command is this , first one is command name , and the other =s are args
             // println!("{:?}" , data_vec) ;
-            let command = &data_vec[0];
-            let args = &data_vec[1..];
-            let mut found = false;
-            for i in &path_seperated {
-                let full_cmd = i.join(command);
-                if full_cmd.exists() {
-                    Command::new(&full_cmd)
-                        .args(args)
-                        .spawn()
-                        .unwrap()
-                        .wait()
-                        .unwrap();
-                    found = true;
-                    break;
-                }
-            }
-            if !found {
-                println!("{}: command not found", command);
-            }
+            exe_command(&data_vec, &path_seperated);
         }
     }
     // let tests = vec![
@@ -480,28 +432,28 @@ fn auto_complete_exe(data: &str, no_match: &mut bool, path_seperated: &Vec<PathB
     // println!("{:?}" , path_seperated) ;
     // println!("{}" , data) ;
     let mut res = data.to_string();
-    let pos = res.len() ;
-    let data2 : Vec<&str> = data.split_whitespace().collect() ;
+    let pos = res.len();
+    let data2: Vec<&str> = data.split_whitespace().collect();
     if data2.is_empty() {
         *no_match = true;
         return res;
     }
-    let mut to_complete = data2[data2.len()-1] ;
+    let to_complete = data2[data2.len() - 1];
     // println!("{}kkkk" , to_complete) ;
     // println!("{:?}" , path_seperated) ;
     // let mut filenames = Vec::new() ;
-    
+
     for i in path_seperated {
-        let read = i.read_dir().unwrap() ;
+        let read = i.read_dir().unwrap();
         // let mut temp = Vec::new() ;
         for j in read {
             let filename = j.as_ref().unwrap().file_name().into_string().unwrap();
-            let mode = j.as_ref().unwrap().metadata().unwrap().mode() ;
+            let mode = j.as_ref().unwrap().metadata().unwrap().mode();
             if mode & 0o111 != 0 && filename.starts_with(&to_complete) {
-                res = filename ;
-                res.push(' ') ;
-                *no_match = false ;
-                return res.to_string() ;
+                res = filename;
+                res.push(' ');
+                *no_match = false;
+                return res.to_string();
             }
             // temp.push(filename);
         }
@@ -509,7 +461,89 @@ fn auto_complete_exe(data: &str, no_match: &mut bool, path_seperated: &Vec<PathB
     }
     // println!("{:?}" , filenames) ;
     if res.len() == pos {
-        *no_match = true ;
+        *no_match = true;
     }
-    res.to_string() 
+    res.to_string()
 }
+
+fn exe_echo(data_vec: &Vec<String>) {
+    let mut pos = data_vec.len();
+    let mut idx = 0;
+    for i in data_vec {
+        if i == "echo" {
+            pos = idx;
+            break;
+        }
+        idx += 1;
+    }
+    let effective_data_vec = &data_vec[pos..];
+    let mut temp_str = String::new();
+    for i in &effective_data_vec[1..] {
+        temp_str.push_str(i);
+        temp_str.push(' ');
+    }
+    print!("{}", temp_str.trim_end());
+    println!();
+}
+
+fn exe_command(data_vec: &Vec<String>, path_seperated: &Vec<PathBuf>) {
+    let command = &data_vec[0];
+    let args = &data_vec[1..];
+    let mut found = false;
+    for i in path_seperated {
+        let full_cmd = i.join(command);
+        if full_cmd.exists() {
+            Command::new(&full_cmd)
+                .args(args)
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
+            found = true;
+            break;
+        }
+    }
+    if !found {
+        println!("{}: command not found", command);
+    }
+}
+
+fn exe_type(data_vec: &Vec<String>, path_seperated: &Vec<PathBuf>, inbuilt_commands: &Vec<String>) {
+    let mut pos = data_vec.len();
+    let mut idx = 0;
+    for i in data_vec {
+        if i == "type" {
+            pos = idx;
+            break;
+        }
+        idx += 1;
+    }
+    let effective_data_vec = data_vec[pos..].to_vec();
+    for j in &effective_data_vec[1..] {
+        if inbuilt_commands.contains(j) {
+            println!("{} is a shell builtin", j);
+            continue;
+        }
+        let mut flag: bool = false;
+        for i in path_seperated {
+            let path_j = Path::new(&j);
+            let full_path = i.join(path_j);
+            // check if the path generated exists or not
+            if full_path.exists() {
+                // now check if the path is executable
+                let mode = full_path.metadata().unwrap().permissions().mode();
+                if (mode & 0o111) != 0 {
+                    // => the path is executable
+                    flag = true;
+                    println!("{} is {}", j, full_path.display());
+                    break;
+                }
+            }
+        }
+        if !flag {
+            println!("{}: not found", j);
+        }
+    }
+}
+
+
