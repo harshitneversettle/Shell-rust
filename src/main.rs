@@ -92,7 +92,7 @@ fn main() {
             }
         }
 
-        let error_flag = false;
+        // let error_flag = false;
         let mut redirect = false;
         let mut redirect_pos = 0;
         let mut double_redirect = false;
@@ -106,25 +106,30 @@ fn main() {
         let data_vec: Vec<String> = parse_input(&data);
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
         // println!("{:?}" , data_vec) ;
-        let mut idx = 0;
-        for i in &data_vec {
-            if i == ">>" || i == "1>>" {
-                double_redirect = true;
-                double_redirect_pos = idx;
-            } else if i == ">" || i == "1>" {
-                redirect = true;
-                redirect_pos = idx;
-            } else if i == "2>" {
-                redirect_err = true;
-                redirect_err_pos = idx;
-            } else if i == "2>>" {
-                double_redirect_err = true;
-                double_redirect_err_pos = idx;
-            } else if i == "|" {
-                pipe = true;
-                pipe_pos = idx;
+        for (idx , i) in data_vec.iter().enumerate() {
+            match i.as_str() {
+                ">>" | "1>>" => {
+                    double_redirect = true;
+                    double_redirect_pos = idx;
+                }
+                ">" | "1>" => {
+                    redirect = true;
+                    redirect_pos = idx;
+                }
+                "2>" => {
+                    redirect_err = true;
+                    redirect_err_pos = idx;
+                }
+                "2>>" => {
+                    double_redirect_err = true;
+                    double_redirect_err_pos = idx;
+                }
+                "|" => {
+                    pipe = true;
+                    pipe_pos = idx;
+                }
+                _ => {}
             }
-            idx += 1;
         }
         if data_vec.is_empty() {
             continue;
