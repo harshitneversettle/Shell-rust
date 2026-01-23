@@ -546,4 +546,20 @@ fn exe_type(data_vec: &Vec<String>, path_seperated: &Vec<PathBuf>, inbuilt_comma
     }
 }
 
-
+fn redirect_1(data_vec: &Vec<String>, redirect_pos: &usize) {
+    let pos = *redirect_pos as usize;
+    let command = &data_vec[0];
+    let args = &data_vec[1..pos];
+    let filename = &data_vec[pos + 1];
+    let file = match OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(filename)
+    {
+        Result::Ok(f) => f,
+        Err(e) => {
+            println!("{}", e);
+        }
+    };
+}
