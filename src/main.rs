@@ -3,7 +3,6 @@ use std::fs::{self, OpenOptions};
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::os::unix::net::UnixDatagram;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::{env, path::Path};
@@ -13,6 +12,7 @@ use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 fn main() {
+    let mut history_commands = Vec::new() ;
     let path = std::env::var("PATH").unwrap();
     let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
 
@@ -27,6 +27,7 @@ fn main() {
             "type".to_string(),
             "pwd".to_string(),
             "cd".to_string(),
+            "history".to_string(),
         ];
         // let symbol1 = String::from(">");
         let mut data = String::new();
@@ -103,7 +104,8 @@ fn main() {
         let mut pipe = false;
         let mut pipe_pos = 0;
         let mut multi_pipe = false;
-        let data_vec: Vec<String> = parse_input(&data);
+        history_commands.push(data) ;
+        let data_vec: Vec<String> = parse_input(&history_commands.last().unwrap());
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
         // println!("{:?}" , data_vec) ;
         let mut count = 0;
@@ -146,6 +148,11 @@ fn main() {
             break;
         } else if data_vec.len() == 1 && !inbuilt_commands.contains(&data_vec[0]) {
             println!("{}: command not found", data_vec[0]);
+            continue;
+        } else if data_vec.len() == 1 && data_vec[0] == "history" {
+            for (idx , i) in history_commands.iter().enumerate() {
+                println!("{} {}" , idx+1 , i) ;
+            }
             continue;
         } else if redirect {
             exe_redirect(&data_vec, &redirect_pos);
@@ -257,7 +264,7 @@ fn main() {
                 .unwrap();
             children.push(last);
             for mut i in children {
-                i.wait();
+                let _ = i.wait();
             }
         } else if pipe {
             let command_1 = &data_vec[0];
@@ -441,7 +448,6 @@ fn auto_complete(data: &str, no_match: &mut bool) -> String {
     } else {
         *no_match = false;
     }
-
     return res;
 }
 
