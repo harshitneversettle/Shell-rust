@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::os::unix::net::UnixDatagram;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::{env, path::Path};
 // use crossterm::cursor::MoveTo;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
@@ -106,14 +106,14 @@ fn main() {
         let data_vec: Vec<String> = parse_input(&data);
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
         // println!("{:?}" , data_vec) ;
-        let mut count = 0 ;
+        let mut count = 0;
         for i in &data_vec {
             if i == "|" {
-                count += 1 ;
+                count += 1;
             }
-        };
+        }
         if count > 1 {
-            multi_pipe = true ;
+            multi_pipe = true;
         }
         for (idx, i) in data_vec.iter().enumerate() {
             match i.as_str() {
@@ -219,16 +219,46 @@ fn main() {
                 }
             }
         } else if multi_pipe {
-            let mut pipe_pos = Vec::new() ;
-            // let first_pipe_pos = data_vec.iter().position(|i| i == "|") ; 
-            // let last_pipe_pos = data_vec.iter().rposition(|i| i == "|") ;
-            for (idx , i) in data_vec.iter().enumerate() {
+            // println!("{:?}" , data_vec) ;
+            let mut new_parsing: Vec<Vec<String>> = Vec::new();
+            let mut temp = Vec::new();
+            for i in data_vec {
                 if i == "|" {
-                    pipe_pos.push(idx) ;
+                    new_parsing.push(temp.clone());
+                    temp.clear();
+                } else {
+                    temp.push(i);
                 }
             }
-            // for i in pipe_pos[1..pipe]
-            println!("{:?}" , pipe_pos) ;
+            if temp.len() != 0 {
+                new_parsing.push(temp);
+            }
+            // println!("{:?}", new_parsing[0][1]);
+            let mut children = Vec::new();
+            let first = Command::new(&new_parsing[0][0])
+                .args(&new_parsing[0][1..])
+                .stdout(Stdio::piped())
+                .spawn()
+                .unwrap();
+            children.push(first);
+            for i in &new_parsing[1..new_parsing.len() - 1] {
+                let prev = children.last_mut().unwrap();
+                let command = i[0].clone();
+                let args = i[1..].to_vec();
+                let child = multi_pipe_input(prev, command, args);
+                children.push(child);
+            }
+            let last = Command::new(&new_parsing[new_parsing.len() - 1][0])
+                .args(&new_parsing[new_parsing.len() - 1][1..])
+                .stdin(Stdio::from(
+                    children.last_mut().unwrap().stdout.take().unwrap(),
+                ))
+                .spawn()
+                .unwrap();
+            children.push(last);
+            for mut i in children {
+                i.wait();
+            }
         } else if pipe {
             let command_1 = &data_vec[0];
             let command_2 = &data_vec[pipe_pos + 1];
@@ -379,7 +409,6 @@ pub fn parse_input(
             }
             _ => {}
         }
-        
     }
     if !curr_str.is_empty() {
         return_vec.push(curr_str);
@@ -595,3 +624,14 @@ fn exe_redirect_err(data_vec: &Vec<String>, redirect_err_pos: &usize) {
 }
 
 // this is like , make input as peekabnle , and jbtk there is peekable loop chalao , and if i have to check any i's next element , i just have to do let some(p) = i.next() annd do operations on that
+
+fn multi_pipe_input(output: &mut Child, command: String, args: Vec<String>) -> Child {
+    let input = output.stdout.take().unwrap();
+    let output = Command::new(command)
+        .args(args)
+        .stdin(Stdio::from(input))
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    output
+}
