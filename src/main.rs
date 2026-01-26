@@ -5,6 +5,7 @@ use std::io::{self, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+use std::usize;
 use std::{env, path::Path};
 // use crossterm::cursor::MoveTo;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
@@ -12,7 +13,7 @@ use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 fn main() {
-    let mut history_commands = Vec::new() ;
+    let mut history_commands = Vec::new();
     let path = std::env::var("PATH").unwrap();
     let path_seperated: Vec<std::path::PathBuf> = env::split_paths(&path).collect();
 
@@ -104,7 +105,7 @@ fn main() {
         let mut pipe = false;
         let mut pipe_pos = 0;
         let mut multi_pipe = false;
-        history_commands.push(data) ;
+        history_commands.push(data);
         let data_vec: Vec<String> = parse_input(&history_commands.last().unwrap());
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
         // println!("{:?}" , data_vec) ;
@@ -149,9 +150,27 @@ fn main() {
         } else if data_vec.len() == 1 && !inbuilt_commands.contains(&data_vec[0]) {
             println!("{}: command not found", data_vec[0]);
             continue;
-        } else if data_vec.len() == 1 && data_vec[0] == "history" {
-            for (idx , i) in history_commands.iter().enumerate() {
-                println!("{} {}" , idx+1 , i) ;
+        } else if data_vec.len() <= 2 && data_vec[0] == "history" {
+            if data_vec.len() == 1 {
+                let mut idx = 0;
+                for i in &history_commands {
+                    println!("{} {}", idx + 1, i);
+                    idx += 1;
+                }
+                continue;
+            }
+            let range = if data_vec.len() > 1 {
+                data_vec[1].parse::<usize>().unwrap()
+            } else {
+                0 as usize
+            };
+            if range == 0 {
+                continue;
+            }
+            let mut idx = range;
+            for i in &history_commands[..range] {
+                println!("{} {}", idx + 1, i);
+                idx += 1;
             }
             continue;
         } else if redirect {
