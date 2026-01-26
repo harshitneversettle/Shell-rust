@@ -3,10 +3,10 @@ use std::fs::{self, OpenOptions};
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::os::unix::net::UnixDatagram;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::{env, path::Path};
-
 // use crossterm::cursor::MoveTo;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 // use crossterm::execute;
@@ -102,11 +102,19 @@ fn main() {
         let mut double_redirect_err_pos = 0;
         let mut pipe = false;
         let mut pipe_pos = 0;
+        let mut multi_pipe = false;
         let data_vec: Vec<String> = parse_input(&data);
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
         // println!("{:?}" , data_vec) ;
-
-
+        let mut count = 0 ;
+        for i in &data_vec {
+            if i == "|" {
+                count += 1 ;
+            }
+        };
+        if count > 1 {
+            multi_pipe = true ;
+        }
         for (idx, i) in data_vec.iter().enumerate() {
             match i.as_str() {
                 ">>" | "1>>" => {
@@ -210,6 +218,17 @@ fn main() {
                     println!("{}", e);
                 }
             }
+        } else if multi_pipe {
+            let mut pipe_pos = Vec::new() ;
+            // let first_pipe_pos = data_vec.iter().position(|i| i == "|") ; 
+            // let last_pipe_pos = data_vec.iter().rposition(|i| i == "|") ;
+            for (idx , i) in data_vec.iter().enumerate() {
+                if i == "|" {
+                    pipe_pos.push(idx) ;
+                }
+            }
+            // for i in pipe_pos[1..pipe]
+            println!("{:?}" , pipe_pos) ;
         } else if pipe {
             let command_1 = &data_vec[0];
             let command_2 = &data_vec[pipe_pos + 1];
