@@ -1,3 +1,5 @@
+notion : https://www.notion.so/Implementation-of-shell-in-rust-2e6d91062ba280fe9b84c1a1ad7a476f?source=copy_link
+
 # Rust Shell
 
 A fully-functional Unix shell implementation written in Rust, featuring command execution, I/O redirection, piping, command history, and tab completion.
