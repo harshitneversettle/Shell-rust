@@ -12,7 +12,6 @@ pub fn parse_input(
     let input = input.trim_end_matches(|c| c == '\n' || c == '\r');
 
     let mut iter = input.chars().peekable();
-    //print!("{}" , input) ;
     while let Some(i) = iter.next() {
         match i {
             // in match , conditions goes in if , PATTERN if condition => { ... }
@@ -42,9 +41,6 @@ pub fn parse_input(
                 escape = false;
                 continue;
             }
-            _ if i != ' ' => {
-                curr_str.push(i);
-            }
             '"' if !in_single => {
                 in_double = !in_double;
                 continue;
@@ -53,6 +49,9 @@ pub fn parse_input(
                 in_single = !in_single;
                 continue;
             }
+            _ if i != ' ' => {
+                curr_str.push(i);
+            }         
             _ if in_single || in_double => {
                 curr_str.push(i);
             }

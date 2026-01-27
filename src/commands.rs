@@ -124,14 +124,11 @@ pub fn exe_pwd() {
 }
 
 pub fn show_history(history_commands: &Vec<String>, data_vec: &Vec<String>) {
-    let mut range: usize = if history_commands.len() > 1 {
+    let mut range: usize = if data_vec.len() > 1 {
         data_vec[1].parse().unwrap()
     } else {
         0
     };
-    if range == 0 {
-        return;
-    }
     for i in &history_commands[range..] {
         println!("{} {}", range + 1, i);
         range += 1;
