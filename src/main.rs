@@ -1,8 +1,10 @@
 use std::fs::{self, OpenOptions};
+use std::io::stdout;
 // use std::io::stdout;
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::os::unix::process;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::usize;
@@ -32,6 +34,7 @@ fn main() {
         ];
         // let symbol1 = String::from(">");
         let mut data = String::new();
+        let mut his_idx = 0;
         // io::stdin().read_line(&mut data).unwrap();
         // taking input
         loop {
@@ -45,6 +48,38 @@ fn main() {
                         data.push(c);
                         print!("{}", c);
                         io::stdout().flush().unwrap();
+                    }
+                    KeyCode::Up => {
+                        // if his_idx == 0 {continue;}
+                        his_idx += 1;
+                        if his_idx <= history_commands.len() - 1 {
+                            let req_idx = history_commands.len() - his_idx;
+                            if req_idx <= history_commands.len() - 1 {
+                                print!("{} ", history_commands[req_idx]);
+                                io::stdout().flush().unwrap();
+                            } else {
+                                continue;
+                            }
+                        } else {
+                            continue;
+                        }
+                    }
+                    KeyCode::Down => {
+                        if his_idx == 0 {
+                            continue;
+                        }
+                        his_idx -= 1;
+                        if his_idx <= history_commands.len() - 1 {
+                            let req_idx = history_commands.len() - his_idx;
+                            if req_idx <= history_commands.len() - 1 {
+                                print!("{} ", history_commands[req_idx]);
+                                io::stdout().flush().unwrap();
+                            } else {
+                                continue;
+                            }
+                        } else {
+                            continue;
+                        }
                     }
                     KeyCode::Tab => {
                         let mut no_match = false;
@@ -74,6 +109,7 @@ fn main() {
                     // }
                     KeyCode::Enter => {
                         // there is a crossterm error/bug , the newline(0xA) is mapped with ctrl+J , so i also have to handle ctrl+J ;
+                        his_idx = 0;
                         println!();
                         print!("\r");
                         io::stdout().flush().unwrap();
@@ -107,8 +143,9 @@ fn main() {
         let mut multi_pipe = false;
         history_commands.push(data);
         let data_vec: Vec<String> = parse_input(&history_commands.last().unwrap());
+
         // parse_input(&data, &mut error_flag, &mut double_redirect, &mut redirect);
-        // println!("{:?}" , data_vec) ;
+        // println!("{:?}", data_vec);
         let mut count = 0;
         for i in &data_vec {
             if i == "|" {
@@ -147,7 +184,10 @@ fn main() {
             continue;
         } else if data_vec.len() == 1 && data_vec[0] == "exit" {
             break;
-        } else if data_vec.len() == 1 && !inbuilt_commands.contains(&data_vec[0]) {
+        } else if data_vec.len() == 1
+            && !inbuilt_commands.contains(&data_vec[0])
+            && data_vec[0] != "ls"
+        {
             println!("{}: command not found", data_vec[0]);
             continue;
         } else if data_vec.len() <= 2 && data_vec[0] == "history" {
@@ -317,6 +357,15 @@ fn main() {
             }
 
             // println!("{} , {} , {:?} , {:?}" , command_1 , command_2 , arguments_1 , arguments_2) ;
+        } else if data_vec[0] == "ls" {
+            let present_dir = Path::new(".");
+            for i in fs::read_dir(present_dir).unwrap() {
+                let file_name = i.as_ref().unwrap().file_name();
+                print!("{} ", file_name.display());
+                stdout().flush().unwrap();
+            }
+            println!() ;
+            std::process::exit(1);
         } else if data_vec[0] == "echo" {
             exe_echo(&data_vec);
         } else if data_vec[0] == "type" {
